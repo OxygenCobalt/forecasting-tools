@@ -17,10 +17,10 @@ poetry install --no-interaction
 poetry run pre-commit install
 
 # Activate virtual environment
-if [-e .venv/bin/activate] ; then
+if [ -e .venv/bin/activate ] ; then
     source .venv/bin/activate
 fi
-if [-e ../.venv/bin/activate] ; then
+if [ -e ../.venv/bin/activate ] ; then
     source ../.venv/bin/activate
 fi
 
