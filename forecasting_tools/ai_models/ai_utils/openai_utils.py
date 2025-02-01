@@ -242,6 +242,17 @@ class OpenAiUtils:
             ChatCompletionUserMessageParam(role="user", content=user_prompt),
         ]
 
+    @staticmethod
+    def create_developer_and_user_message_from_prompt(
+        user_prompt: str, developer_prompt: str
+    ) -> list[ChatCompletionMessageParam]:
+        return [
+            ChatCompletionSystemMessageParam(
+                role="developer", content=developer_prompt
+            ),
+            ChatCompletionUserMessageParam(role="user", content=user_prompt),
+        ]
+
     @classmethod
     def create_system_and_image_message_from_prompt(
         cls, vision_message_data: VisionMessageData, system_prompt: str

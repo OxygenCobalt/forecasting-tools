@@ -1,11 +1,12 @@
 import logging
 import os
 from abc import ABC
+from typing import Any
 
-from langchain_community.callbacks.openai_info import (
-    TokenType,
-    get_openai_token_cost_for_model,
-)
+# from langchain_community.callbacks.openai_info import (
+#     TokenType,
+#     get_openai_token_cost_for_model,
+# )
 from openai import AsyncOpenAI
 from openai._types import NOT_GIVEN, NotGiven
 from openai.types.chat import ChatCompletionMessageParam
@@ -30,6 +31,22 @@ class OpenAiTextToTextModel(TraditionalOnlineLlm, ABC):
         ),
         max_retries=0,  # Retry is implemented locally
     )
+
+    def __init__(
+        self,
+        *args: Any,
+        temperature: float = 1,
+        system_prompt: str | None = None,
+        use_developer_role: bool = False,
+        **kwargs: Any,
+    ):
+        self.use_developer_role = use_developer_role
+        super().__init__(
+            *args,
+            temperature=temperature,
+            system_prompt=system_prompt,
+            **kwargs,
+        )
 
     async def invoke(self, prompt: str) -> str:
         response: TextTokenCostResponse = (
@@ -56,6 +73,10 @@ class OpenAiTextToTextModel(TraditionalOnlineLlm, ABC):
             return OpenAiUtils.put_single_user_message_in_list_using_prompt(
                 prompt
             )
+        elif self.use_developer_role:
+            return OpenAiUtils.create_developer_and_user_message_from_prompt(
+                prompt, self.system_prompt
+            )
         else:
             return OpenAiUtils.create_system_and_user_message_from_prompt(
                 prompt, self.system_prompt
@@ -69,12 +90,25 @@ class OpenAiTextToTextModel(TraditionalOnlineLlm, ABC):
     ) -> TextTokenCostResponse:
         client = self._OPENAI_ASYNC_CLIENT
 
-        response = await client.chat.completions.create(
-            model=self.MODEL_NAME,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        try:
+            print(self.MODEL_NAME)
+            if self.MODEL_NAME == "o3-mini":
+                response = await client.chat.completions.create(
+                    model=self.MODEL_NAME,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    reasoning_level="high",
+                )
+            else:
+                response = await client.chat.completions.create(
+                    model=self.MODEL_NAME,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
+        except Exception as e:
+            print("Error: ", e)
+            raise e
         if response.choices[0].message.content is None:
             raise RuntimeError(
                 "The model failed to give an answer. response.choices[0].message.content is None"
@@ -143,11 +177,4 @@ class OpenAiTextToTextModel(TraditionalOnlineLlm, ABC):
     def calculate_cost_from_tokens(
         self, prompt_tkns: int, completion_tkns: int
     ) -> float:
-        prompt_cost = get_openai_token_cost_for_model(
-            self.MODEL_NAME, prompt_tkns, token_type=TokenType.PROMPT
-        )
-        completion_cost = get_openai_token_cost_for_model(
-            self.MODEL_NAME, completion_tkns, token_type=TokenType.COMPLETION
-        )
-        cost = prompt_cost + completion_cost
-        return cost
+        return 0
