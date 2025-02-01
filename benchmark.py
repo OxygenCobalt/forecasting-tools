@@ -29,7 +29,7 @@ from forecasting_tools import Benchmarker, BenchmarkForBot
 bots = [LaylapsBot()]  # Add your custom bots here
 benchmarker = Benchmarker(
     forecast_bots=bots,
-    number_of_questions_to_use=2,  # Recommended 100+ for meaningful results
+    number_of_questions_to_use=80,  # Recommended 100+ for meaningful results
     file_path_to_save_reports="benchmarks/",
 )
 benchmarks: list[BenchmarkForBot] = asyncio.run(benchmarker.run_benchmark())
