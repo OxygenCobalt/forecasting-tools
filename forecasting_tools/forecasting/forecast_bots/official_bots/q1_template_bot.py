@@ -5,7 +5,6 @@ from datetime import datetime
 
 from forecasting_tools.ai_models.ai_utils.ai_misc import clean_indents
 from forecasting_tools.ai_models.claude35sonnet import Claude35Sonnet
-from forecasting_tools.ai_models.exa_searcher import ExaSearcher
 from forecasting_tools.ai_models.gpt4o import Gpt4o
 from forecasting_tools.ai_models.metaculus4o import Gpt4oMetaculusProxy
 from forecasting_tools.ai_models.perplexity import Perplexity
@@ -90,37 +89,19 @@ class Q1TemplateBot(Q4TemplateBot):
 
     @classmethod
     async def _call_exa_smart_searcher(cls, question: str) -> str:
-        if os.getenv("OPENAI_API_KEY") is None:
-            searcher = ExaSearcher(
-                include_highlights=True,
-                num_results=10,
-            )
-            highlights = (
-                await searcher.invoke_for_highlights_in_relevance_order(
-                    question
-                )
-            )
-            prioritized_highlights = highlights[:10]
-            combined_highlights = ""
-            for i, highlight in enumerate(prioritized_highlights):
-                combined_highlights += f'[Highlight {i+1}]:\nTitle: {highlight.source.title}\nURL: {highlight.source.url}\nText: "{highlight.highlight_text}"\n\n'
-            response = combined_highlights
-        else:
-            searcher = SmartSearcher(
-                temperature=0,
-                num_searches_to_run=2,
-                num_sites_per_search=10,
-            )
-            prompt = (
-                "You are an assistant to a superforecaster. The superforecaster will give"
-                "you a question they intend to forecast on. To be a great assistant, you generate"
-                "a concise but detailed rundown of the most relevant news, including if the question"
-                "would resolve Yes or No based on current information. You do not produce forecasts yourself."
-                f"\n\nThe question is: {question}"
-            )
-            response = await searcher.invoke(prompt)
-
-        return response
+        searcher = SmartSearcher(
+            temperature=0,
+            num_searches_to_run=2,
+            num_sites_per_search=10,
+        )
+        prompt = (
+            "You are an assistant to a superforecaster. The superforecaster will give"
+            "you a question they intend to forecast on. To be a great assistant, you generate"
+            "a concise but detailed rundown of the most relevant news, including if the question"
+            "would resolve Yes or No based on current information. You do not produce forecasts yourself."
+            f"\n\nThe question is: {question}"
+        )
+        return await searcher.invoke(prompt)
 
     async def _run_forecast_on_binary(
         self, question: BinaryQuestion, research: str
