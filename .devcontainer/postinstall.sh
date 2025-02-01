@@ -17,8 +17,12 @@ poetry install --no-interaction
 poetry run pre-commit install
 
 # Activate virtual environment
-source .venv/bin/activate
-source ../.venv/bin/activate
+if [-e .venv/bin/activate] ; then
+    source .venv/bin/activate
+fi
+if [-e ../.venv/bin/activate] ; then
+    source ../.venv/bin/activate
+fi
 
 # Show which Python interpreter is being used
 which python
