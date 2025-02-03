@@ -59,7 +59,7 @@ class Q1TemplateBot(Q4TemplateBot):
     async def run_research(self, question: MetaculusQuestion) -> str:
         research = ""
         if os.getenv("ASKNEWS_CLIENT_ID") and os.getenv("ASKNEWS_SECRET"):
-            research = AskNewsSearcher.get_formatted_news(
+            research = await AskNewsSearcher.get_formatted_news(
                 question.question_text
             )
         elif os.getenv("EXA_API_KEY"):

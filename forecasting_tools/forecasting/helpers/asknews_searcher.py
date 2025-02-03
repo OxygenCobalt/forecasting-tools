@@ -1,4 +1,6 @@
+import asyncio
 import os
+import random
 
 from asknews_sdk import AskNewsSDK
 
@@ -6,11 +8,14 @@ from asknews_sdk import AskNewsSDK
 class AskNewsSearcher:
 
     @classmethod
-    def get_formatted_news(cls, query: str) -> str:
+    async def get_formatted_news(cls, query: str) -> str:
         """
         Use the AskNews `news` endpoint to get news context for your query.
         The full API reference can be found here: https://docs.asknews.app/en/reference#get-/v1/news/search
         """
+        # For some insane reason the calls to this searcher just...cant share
+        # a semaphore. Sleep instead.
+        await asyncio.sleep(10 * random.uniform(0.0, 1.0))
         ASKNEWS_CLIENT_ID = os.getenv("ASKNEWS_CLIENT_ID")
         ASKNEWS_SECRET = os.getenv("ASKNEWS_SECRET")
 

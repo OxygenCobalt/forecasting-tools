@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from typing import Sequence
 
 import dotenv
 
@@ -26,10 +27,14 @@ logger = logging.getLogger(__name__)
 from forecasting_tools import Benchmarker, BenchmarkForBot
 
 # Run benchmark on multiple bots
-bots = [LaylapsBot()]  # Add your custom bots here
+bots: Sequence[LaylapsBot] = [
+    LaylapsBot(
+        research_reports_per_question=1, predictions_per_research_report=1
+    )
+]  # Add your custom bots here
 benchmarker = Benchmarker(
     forecast_bots=bots,
-    number_of_questions_to_use=80,  # Recommended 100+ for meaningful results
+    number_of_questions_to_use=100,  # Recommended 100+ for meaningful results
     file_path_to_save_reports="benchmarks/",
 )
 benchmarks: list[BenchmarkForBot] = asyncio.run(benchmarker.run_benchmark())

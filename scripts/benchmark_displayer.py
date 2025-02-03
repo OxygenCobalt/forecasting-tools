@@ -338,16 +338,22 @@ def display_benchmark_comparison_graphs(
 def make_perfect_benchmark(
     model_benchmark: BenchmarkForBot,
 ) -> BenchmarkForBot:
+    print("work3")
     perfect_benchmark = model_benchmark.model_copy()
+    print("work4")
     reports_of_perfect_benchmark = [
         report.model_copy() for report in perfect_benchmark.forecast_reports
     ]
+    print("work5")
     reports_of_perfect_benchmark = typeguard.check_type(
         reports_of_perfect_benchmark, list[BinaryReport]
     )
+    print("work6")
     for report in reports_of_perfect_benchmark:
+        print(report)
         assert report.community_prediction is not None
         report.prediction = report.community_prediction
+    print("work7")
     perfect_benchmark.forecast_reports = reports_of_perfect_benchmark
     perfect_benchmark.name = "Perfect Predictor (questions of benchmark 1)"
     return perfect_benchmark
@@ -374,10 +380,13 @@ def main() -> None:
         try:
             all_benchmarks: list[BenchmarkForBot] = []
             for file in selected_files:
+                print(file)
                 benchmarks = BenchmarkForBot.load_json_from_file_path(file)
                 all_benchmarks.extend(benchmarks)
+            print("work")
 
             perfect_benchmark = make_perfect_benchmark(all_benchmarks[0])
+            print("work 2")
             all_benchmarks.insert(0, perfect_benchmark)
 
             benchmark_options = [

@@ -8,11 +8,11 @@ import typeguard
 from forecasting_tools.ai_models.resource_managers.monetary_cost_manager import (
     MonetaryCostManager,
 )
+from forecasting_tools.forecasting.forecast_bots.community.laylaps import (
+    LaylapsBot,
+)
 from forecasting_tools.forecasting.forecast_bots.forecast_bot import (
     ForecastBot,
-)
-from forecasting_tools.forecasting.forecast_bots.official_bots.q1_veritas_bot import (
-    Q1VeritasBot,
 )
 from forecasting_tools.forecasting.helpers.benchmarker import Benchmarker
 from forecasting_tools.util.custom_logger import CustomLogger
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 async def benchmark_forecast_bot() -> None:
-    questions_to_use = 1
+    questions_to_use = 100
     with MonetaryCostManager() as cost_manager:
         bots = [
             # Q3TemplateBot(),
@@ -37,9 +37,9 @@ async def benchmark_forecast_bot() -> None:
             #     research_reports_per_question=1,
             #     predictions_per_research_report=1,
             # ),
-            Q1VeritasBot(
-                research_reports_per_question=5,
-                predictions_per_research_report=5,
+            LaylapsBot(
+                research_reports_per_question=1,
+                predictions_per_research_report=1,
             ),
         ]
         bots = typeguard.check_type(bots, list[ForecastBot])
@@ -47,7 +47,7 @@ async def benchmark_forecast_bot() -> None:
             number_of_questions_to_use=questions_to_use,
             forecast_bots=bots,
             file_path_to_save_reports="logs/forecasts/benchmarks/",
-            concurrent_question_batch_size=20,
+            concurrent_question_batch_size=10,
         ).run_benchmark()
         for i, benchmark in enumerate(benchmarks):
             logger.info(

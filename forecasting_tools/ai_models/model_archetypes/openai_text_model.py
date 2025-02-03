@@ -91,7 +91,6 @@ class OpenAiTextToTextModel(TraditionalOnlineLlm, ABC):
         client = self._OPENAI_ASYNC_CLIENT
 
         try:
-            print(self.MODEL_NAME)
             if self.MODEL_NAME == "o3-mini":
                 response = await client.chat.completions.create(
                     model=self.MODEL_NAME,
