@@ -18,10 +18,6 @@ import logging
 from forecasting_tools.forecasting.forecast_bots.community.laylaps import (
     LaylapsBot,
 )
-from forecasting_tools.forecasting.helpers.forecast_database_manager import (
-    ForecastDatabaseManager,
-    ForecastRunType,
-)
 from forecasting_tools.forecasting.questions_and_reports.forecast_report import (
     ForecastReport,
 )
@@ -62,12 +58,6 @@ async def run_forecasts(skip_previous: bool, tournament: int | str) -> None:
     for report in valid_reports:
         total_cost += report.price_estimate if report.price_estimate else 0
         await asyncio.sleep(5)
-        try:
-            ForecastDatabaseManager.add_forecast_report_to_database(
-                report, ForecastRunType.REGULAR_FORECAST
-            )
-        except Exception as e:
-            logger.error(f"Error adding forecast report to database: {e}")
     logger.info(f"Total cost estimated: {total_cost}")
 
     if exceptions:
