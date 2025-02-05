@@ -96,7 +96,7 @@ class OpenAiTextToTextModel(TraditionalOnlineLlm, ABC):
                     model=self.MODEL_NAME,
                     messages=messages,
                     max_tokens=max_tokens,
-                    reasoning_level="high",
+                    reasoning_effort="high",
                 )
             else:
                 response = await client.chat.completions.create(

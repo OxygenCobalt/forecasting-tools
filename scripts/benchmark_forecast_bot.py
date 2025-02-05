@@ -8,8 +8,12 @@ import typeguard
 from forecasting_tools.ai_models.resource_managers.monetary_cost_manager import (
     MonetaryCostManager,
 )
-from forecasting_tools.forecasting.forecast_bots.community.laylaps import (
-    LaylapsBot,
+from forecasting_tools.forecasting.forecast_bots.community.laylapso import (
+    LaylapsO1Bot,
+    LaylapsO3Bot,
+)
+from forecasting_tools.forecasting.forecast_bots.community.laylapsr import (
+    LaylapsPerplexityBot,
 )
 from forecasting_tools.forecasting.forecast_bots.forecast_bot import (
     ForecastBot,
@@ -24,22 +28,19 @@ async def benchmark_forecast_bot() -> None:
     questions_to_use = 100
     with MonetaryCostManager() as cost_manager:
         bots = [
-            # Q3TemplateBot(),
-            # Q4VeritasWithExaAndDeepSeekR1(
-            #     research_reports_per_question=1,
-            #     predictions_per_research_report=1,
-            # ),
-            # Q4VeritasWithExaAndDeepSeekR1(
-            #     research_reports_per_question=5,
-            #     predictions_per_research_report=5,
-            # ),
-            # Q1VeritasBot(
-            #     research_reports_per_question=1,
-            #     predictions_per_research_report=1,
-            # ),
-            LaylapsBot(
+            LaylapsPerplexityBot(
                 research_reports_per_question=1,
                 predictions_per_research_report=1,
+            ),
+            LaylapsO1Bot(
+                research_reports_per_question=1,
+                predictions_per_research_report=1,
+                research_used=["perplexity"],
+            ),
+            LaylapsO3Bot(
+                research_reports_per_question=1,
+                predictions_per_research_report=1,
+                research_used=["perplexity"],
             ),
         ]
         bots = typeguard.check_type(bots, list[ForecastBot])

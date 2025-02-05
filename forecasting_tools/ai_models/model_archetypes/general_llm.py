@@ -52,15 +52,16 @@ class GeneralTextToTextLlm(
     NamedModel,
     ABC,
 ):
+    REASONING_EFFORT: str | None = None
 
     def __init__(
         self,
-        temperature: float = 0,
+        temperature: float | None = None,
         allowed_tries: int = RetryableModel._DEFAULT_ALLOWED_TRIES,
         system_prompt: str | None = None,
     ) -> None:
         super().__init__(allowed_tries=allowed_tries)
-        self.temperature: float = temperature
+        self.temperature: float | None = temperature
         self.system_prompt: str | None = system_prompt
 
     def __init_subclass__(cls: type[GeneralTextToTextLlm], **kwargs) -> None:
@@ -119,6 +120,7 @@ class GeneralTextToTextLlm(
             temperature=self.temperature,
             stream=False,
             timeout=self.TIMEOUT_TIME,
+            reasoning_effort=self.REASONING_EFFORT,
         )
         assert isinstance(response, ModelResponse)
         choices = response.choices
