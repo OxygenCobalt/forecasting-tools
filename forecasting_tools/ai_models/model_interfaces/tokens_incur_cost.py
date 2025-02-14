@@ -4,10 +4,8 @@ from typing import Any
 from forecasting_tools.ai_models.ai_utils.response_types import (
     TextTokenCostResponse,
 )
-from forecasting_tools.ai_models.basic_model_interfaces.incurs_cost import (
-    IncursCost,
-)
-from forecasting_tools.ai_models.basic_model_interfaces.tokens_are_calculatable import (
+from forecasting_tools.ai_models.model_interfaces.incurs_cost import IncursCost
+from forecasting_tools.ai_models.model_interfaces.tokens_are_calculatable import (
     TokensAreCalculatable,
 )
 from forecasting_tools.ai_models.resource_managers.monetary_cost_manager import (
@@ -16,12 +14,6 @@ from forecasting_tools.ai_models.resource_managers.monetary_cost_manager import 
 
 
 class TokensIncurCost(TokensAreCalculatable, IncursCost, ABC):
-
-    @abstractmethod
-    def calculate_cost_from_tokens(
-        self, prompt_tkns: int, completion_tkns: int
-    ) -> float:
-        pass
 
     @abstractmethod
     def input_to_tokens(self, *args, **kwargs) -> int:
@@ -37,15 +29,3 @@ class TokensIncurCost(TokensAreCalculatable, IncursCost, ABC):
                 f"This method has not been implemented for response type {type(response_from_direct_call)}"
             )
         MonetaryCostManager.increase_current_usage_in_parent_managers(cost)
-
-    @property
-    def cost_per_token_completion(self) -> float:
-        return self.calculate_cost_from_tokens(
-            prompt_tkns=0, completion_tkns=1
-        )
-
-    @property
-    def cost_per_token_prompt(self) -> float:
-        return self.calculate_cost_from_tokens(
-            prompt_tkns=1, completion_tkns=0
-        )

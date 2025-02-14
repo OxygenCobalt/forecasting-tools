@@ -1,11 +1,11 @@
 from typing import Final
 
-from forecasting_tools.ai_models.model_archetypes.general_llm import (
-    GeneralTextToTextLlm,
+from forecasting_tools.ai_models.model_interfaces.combined_llm_archetype import (
+    CombinedLlmArchetype,
 )
 
 
-class Perplexity(GeneralTextToTextLlm):
+class Perplexity(CombinedLlmArchetype):
     MODEL_NAME: Final[str] = "perplexity/sonar-pro"
     REQUESTS_PER_PERIOD_LIMIT: Final[int] = (
         40  # Technically 50, but giving wiggle room
