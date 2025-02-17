@@ -1,11 +1,15 @@
-import re
 from datetime import datetime
 
 from forecasting_tools.ai_models.ai_utils.ai_misc import clean_indents
-from forecasting_tools.ai_models.gpt4o import Gpt4o
-from forecasting_tools.ai_models.perplexity import Perplexity
+from forecasting_tools.ai_models.deprecated_model_classes.gpt4o import Gpt4o
+from forecasting_tools.ai_models.deprecated_model_classes.perplexity import (
+    Perplexity,
+)
 from forecasting_tools.forecasting.forecast_bots.forecast_bot import (
     ForecastBot,
+)
+from forecasting_tools.forecasting.helpers.prediction_extractor import (
+    PredictionExtractor,
 )
 from forecasting_tools.forecasting.questions_and_reports.forecast_report import (
     ReasonedPrediction,
@@ -85,34 +89,12 @@ class Q3TemplateBot(ForecastBot):
             """
         )
         reasoning = await self.FINAL_DECISION_LLM.invoke(prompt)
-        prediction = self._extract_forecast_from_binary_rationale(
+        prediction = PredictionExtractor.extract_last_percentage_value(
             reasoning, max_prediction=0.99, min_prediction=0.01
         )
         return ReasonedPrediction(
             prediction_value=prediction, reasoning=reasoning
         )
-
-    def _extract_forecast_from_binary_rationale(
-        self, rationale: str, max_prediction: float, min_prediction: float
-    ) -> float:
-        assert 0 <= max_prediction <= 1
-        assert 0 <= min_prediction <= 1
-        assert max_prediction >= min_prediction
-        matches = re.findall(r"(\d+)%", rationale)
-        if matches:
-            # Return the last number found before a '%'
-            original_number = int(matches[-1]) / 100
-            clamped_number = min(
-                max_prediction, max(min_prediction, original_number)
-            )
-            assert (
-                min_prediction <= clamped_number <= max_prediction
-            ), f"Clamped number {clamped_number} is not between {min_prediction} and {max_prediction}"
-            return clamped_number
-        else:
-            raise ValueError(
-                f"Could not extract prediction from response: {rationale}"
-            )
 
     async def _run_forecast_on_multiple_choice(
         self, question: MultipleChoiceQuestion, research: str
