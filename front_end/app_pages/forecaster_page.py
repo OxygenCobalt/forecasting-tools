@@ -5,21 +5,16 @@ import dotenv
 import streamlit as st
 from pydantic import BaseModel, Field
 
-from forecasting_tools.forecasting.forecast_bots.community.q4_veritas_bot import (
+from forecasting_tools.data_models.binary_report import BinaryReport
+from forecasting_tools.data_models.questions import BinaryQuestion
+from forecasting_tools.forecast_bots.community.q4_veritas_bot import (
     Q4VeritasBot,
 )
-from forecasting_tools.forecasting.helpers.forecast_database_manager import (
+from forecasting_tools.forecast_helpers.forecast_database_manager import (
     ForecastDatabaseManager,
     ForecastRunType,
 )
-from forecasting_tools.forecasting.helpers.metaculus_api import MetaculusApi
-from forecasting_tools.forecasting.questions_and_reports.binary_report import (
-    BinaryReport,
-)
-from forecasting_tools.forecasting.questions_and_reports.questions import (
-    BinaryQuestion,
-    QuestionState,
-)
+from forecasting_tools.forecast_helpers.metaculus_api import MetaculusApi
 from forecasting_tools.util.jsonable import Jsonable
 from front_end.helpers.report_displayer import ReportDisplayer
 from front_end.helpers.tool_page import ToolPage
@@ -102,8 +97,6 @@ class ForecasterPage(ToolPage):
                     return None
                 question = BinaryQuestion(
                     question_text=question_text,
-                    id_of_post=0,
-                    state=QuestionState.OPEN,
                     background_info=background_info,
                     resolution_criteria=resolution_criteria,
                     fine_print=fine_print,

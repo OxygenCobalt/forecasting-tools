@@ -7,20 +7,18 @@ import typeguard
 from code_tests.unit_tests.test_forecasting.forecasting_test_manager import (
     ForecastingTestManager,
 )
-from forecasting_tools.forecasting.helpers.metaculus_api import (
-    ApiFilter,
-    MetaculusApi,
-)
-from forecasting_tools.forecasting.questions_and_reports.data_organizer import (
-    DataOrganizer,
-)
-from forecasting_tools.forecasting.questions_and_reports.questions import (
+from forecasting_tools.data_models.data_organizer import DataOrganizer
+from forecasting_tools.data_models.questions import (
     BinaryQuestion,
     DateQuestion,
     MetaculusQuestion,
     MultipleChoiceQuestion,
     NumericQuestion,
     QuestionState,
+)
+from forecasting_tools.forecast_helpers.metaculus_api import (
+    ApiFilter,
+    MetaculusApi,
 )
 
 logger = logging.getLogger(__name__)
@@ -121,7 +119,7 @@ def test_post_binary_prediction_on_question() -> None:
 
 
 def test_post_binary_prediction_error_when_out_of_range() -> None:
-    question = ForecastingTestManager.get_fake_binary_questions()
+    question = ForecastingTestManager.get_fake_binary_question()
     question_id = question.id_of_post
     with pytest.raises(ValueError):
         MetaculusApi.post_binary_question_prediction(question_id, 0)
