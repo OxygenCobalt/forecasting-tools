@@ -56,8 +56,8 @@ def display_deviation_scores(reports: list[BinaryReport]) -> None:
 def display_stats_for_report_type(
     reports: list[BinaryReport], title: str
 ) -> None:
-    average_expected_log_score = (
-        BinaryReport.calculate_average_inverse_expected_log_score(reports)
+    average_expected_baseline_score = (
+        BinaryReport.calculate_average_expected_baseline_score(reports)
     )
     average_deviation = BinaryReport.calculate_average_deviation_points(
         reports
@@ -66,7 +66,7 @@ def display_stats_for_report_type(
         f"""
         #### {title}
         - Number of Questions: {len(reports)}
-        - Expected Log Score (lower is better): {average_expected_log_score:.4f}
+        - Expected Baseline Score (lower is better): {average_expected_baseline_score:.4f}
         - Average Deviation: On average, there is a {average_deviation:.2%} percentage point difference between community and bot
         """
     )
@@ -105,16 +105,16 @@ def display_question_stats_in_list(
     sorted_reports = sorted(
         report_list,
         key=lambda r: (
-            r.inversed_expected_log_score
-            if r.inversed_expected_log_score is not None
+            r.expected_baseline_score
+            if r.expected_baseline_score is not None
             else -1
         ),
         reverse=True,
     )
     for report in sorted_reports:
         deviation = (
-            report.inversed_expected_log_score
-            if report.inversed_expected_log_score is not None
+            report.expected_baseline_score
+            if report.expected_baseline_score is not None
             else -1
         )
         st.write(
@@ -128,7 +128,7 @@ def display_benchmark_list(benchmarks: list[BenchmarkForBot]) -> None:
 
     st.markdown("# Select Benchmark")
     benchmark_options = [
-        f"{b.name} (Score: {b.average_inverse_expected_log_score:.4f})"
+        f"{b.name} (Score: {b.average_expected_baseline_score:.4f})"
         for b in benchmarks
     ]
     selected_benchmark_name = st.selectbox(
@@ -148,7 +148,7 @@ def display_benchmark_list(benchmarks: list[BenchmarkForBot]) -> None:
         st.markdown(f"**Total Cost:** {benchmark.total_cost}")
         st.markdown(f"**Git Commit Hash:** {benchmark.git_commit_hash}")
         st.markdown(
-            f"**Average Inverse Expected Log Score:** {benchmark.average_inverse_expected_log_score:.4f}"
+            f"**Average Expected Baseline Score:** {benchmark.average_expected_baseline_score:.4f}"
         )
         # Add average deviation score if reports are binary
         if isinstance(benchmark.forecast_reports[0], BinaryReport):
@@ -224,7 +224,7 @@ def display_benchmark_comparison_graphs(
                 {
                     "Benchmark": benchmark_name,
                     "Category": "All Questions",
-                    "Expected Log Score": benchmark.average_inverse_expected_log_score,
+                    "Expected Baseline Score": benchmark.average_expected_baseline_score,
                     "Deviation Score": BinaryReport.calculate_average_deviation_points(
                         reports
                     )
@@ -233,7 +233,7 @@ def display_benchmark_comparison_graphs(
                 {
                     "Benchmark": benchmark_name,
                     "Category": "Certain Questions",
-                    "Expected Log Score": BinaryReport.calculate_average_inverse_expected_log_score(
+                    "Expected Baseline Score": BinaryReport.calculate_average_expected_baseline_score(
                         certain_reports
                     ),
                     "Deviation Score": BinaryReport.calculate_average_deviation_points(
@@ -244,7 +244,7 @@ def display_benchmark_comparison_graphs(
                 {
                     "Benchmark": benchmark_name,
                     "Category": "Uncertain Questions",
-                    "Expected Log Score": BinaryReport.calculate_average_inverse_expected_log_score(
+                    "Expected Baseline Score": BinaryReport.calculate_average_expected_baseline_score(
                         uncertain_reports
                     ),
                     "Deviation Score": BinaryReport.calculate_average_deviation_points(
@@ -261,28 +261,28 @@ def display_benchmark_comparison_graphs(
     try:
         df = pd.DataFrame(data_by_benchmark)
 
-        st.markdown("### Expected Log Scores")
+        st.markdown("### Expected Baseline Scores")
         st.markdown("Lower score indicates better performance.")
 
-        min_scores = df.groupby("Category")["Expected Log Score"].transform(
-            "min"
-        )
-        df["Is Min Expected"] = df["Expected Log Score"] == min_scores
+        min_scores = df.groupby("Category")[
+            "Expected Baseline Score"
+        ].transform("min")
+        df["Is Min Expected"] = df["Expected Baseline Score"] == min_scores
 
         fig = px.bar(
             df,
             x="Benchmark",
-            y="Expected Log Score",
+            y="Expected Baseline Score",
             color="Category",
             barmode="group",
-            title="Expected Log Scores by Benchmark and Category",
+            title="Expected Baseline Scores by Benchmark and Category",
         )
-        fig.update_layout(yaxis_title="Expected Log Score")
+        fig.update_layout(yaxis_title="Expected Baseline Score")
 
         for idx, row in df[df["Is Min Expected"]].iterrows():
             fig.add_annotation(
                 x=row["Benchmark"],
-                y=row["Expected Log Score"],
+                y=row["Expected Baseline Score"],
                 text="★",
                 showarrow=False,
                 yshift=10,
@@ -375,7 +375,7 @@ def main() -> None:
             all_benchmarks.insert(0, perfect_benchmark)
 
             benchmark_options = [
-                f"{i}: {b.name} (Score: {b.average_inverse_expected_log_score:.4f})"
+                f"{i}: {b.name} (Score: {b.average_expected_baseline_score:.4f})"
                 for i, b in enumerate(all_benchmarks)
             ]
             selected_benchmarks = st.multiselect(
