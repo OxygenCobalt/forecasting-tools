@@ -15,8 +15,8 @@ dotenv.load_dotenv()
 
 import logging
 
-from forecasting_tools.forecasting.forecast_bots.community.laylaps import (
-    LaylapsBot,
+from forecasting_tools.forecasting.forecast_bots.community.laylapso import (
+    LaylapsO1Bot,
 )
 from forecasting_tools.forecasting.questions_and_reports.forecast_report import (
     ForecastReport,
@@ -33,7 +33,7 @@ async def run_forecasts(skip_previous: bool, tournament: int | str) -> None:
     Make a copy of this file called run_bot.py (i.e. remove template) and fill in your bot details.
     This will be run in the workflows
     """
-    forecaster = LaylapsBot(
+    forecaster = LaylapsO1Bot(
         research_reports_per_question=1,
         predictions_per_research_report=1,
         publish_reports_to_metaculus=True,
