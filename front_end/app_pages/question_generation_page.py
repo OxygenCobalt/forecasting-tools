@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime, timedelta
 
 import streamlit as st
 from pydantic import BaseModel
 
+from forecasting_tools.ai_models.general_llm import GeneralLlm
 from forecasting_tools.ai_models.resource_managers.monetary_cost_manager import (
     MonetaryCostManager,
 )
@@ -13,9 +15,11 @@ from forecasting_tools.forecast_helpers.forecast_database_manager import (
     ForecastDatabaseManager,
     ForecastRunType,
 )
+from forecasting_tools.forecast_helpers.smart_searcher import SmartSearcher
 from forecasting_tools.research_agents.question_generator import (
+    GeneratedQuestion,
     QuestionGenerator,
-    SimpleQuestion,
+    TopicGenerator,
 )
 from forecasting_tools.util.jsonable import Jsonable
 from front_end.helpers.report_displayer import ReportDisplayer
@@ -33,9 +37,10 @@ class QuestionGeneratorInput(Jsonable, BaseModel):
 
 
 class QuestionGeneratorOutput(Jsonable, BaseModel):
-    questions: list[SimpleQuestion]
+    questions: list[GeneratedQuestion]
     original_input: QuestionGeneratorInput
     cost: float
+    generation_time_seconds: float | None = None
 
 
 class QuestionGeneratorPage(ToolPage):
@@ -49,14 +54,57 @@ class QuestionGeneratorPage(ToolPage):
 
     @classmethod
     async def _display_intro_text(cls) -> None:
+        # No intro text for this page
         pass
 
     @classmethod
     async def _get_input(cls) -> QuestionGeneratorInput | None:
+        with st.expander("🎲 Generate random topic ideas"):
+            st.markdown(
+                "This tool selects random countries/cities/jobs/stocks/words to seed gpt's brainstorming"
+            )
+            if st.button("Generate random topics"):
+                with st.spinner("Generating random topics..."):
+                    topics = await TopicGenerator.generate_random_topic()
+                    topic_bullets = [f"- {topic}" for topic in topics]
+                    st.markdown("\n".join(topic_bullets))
+
+            if st.button("Generate random topics w/ search"):
+                with st.spinner("Generating random topics..."):
+                    smart_searcher = SmartSearcher(
+                        model="gpt-4o",
+                        num_searches_to_run=3,
+                        num_sites_per_search=10,
+                    )
+                    topics = await TopicGenerator.generate_random_topic(
+                        model=smart_searcher,
+                        additional_instructions=(
+                            "Pick topics related to breaking news"
+                            " (e.g. if your material is related to basketball"
+                            " and march madness is happening choose this as a topic)."
+                            " Add citations to show the topic is recent and relevant."
+                            " Consider searching for 'latest news in <place>' or 'news related to <upcoming holidays/tournaments/events>'."
+                            f" Today is {datetime.now().strftime('%Y-%m-%d')} if you already know of something specific in an area to find juice."
+                        ),
+                    )
+                    topic_bullets = [f"- {topic}" for topic in topics]
+                    st.markdown("\n".join(topic_bullets))
+
+            if st.button("Generate random news items"):
+                with st.spinner("Generating random news items..."):
+                    news_items = (
+                        await TopicGenerator.generate_random_news_items(
+                            number_of_items=10,
+                            model="gpt-4o",
+                        )
+                    )
+                    news_item_bullets = [f"- {item}" for item in news_items]
+                    st.markdown("\n".join(news_item_bullets))
+
         with st.form("question_generator_form"):
-            topic = st.text_input(
-                "Topic (optional)",
-                value="Lithuanian politics and technology",
+            topic = st.text_area(
+                "Topic(s)/question idea(s) and additional context (optional)",
+                value="'Lithuanian politics and technology' OR 'Questions related to <question rough draft>'",
             )
             number_of_questions = st.number_input(
                 "Number of questions to generate",
@@ -65,8 +113,8 @@ class QuestionGeneratorPage(ToolPage):
                 value=5,
             )
             model = st.text_input(
-                "Litellm Model (e.g.: o1, claude-3-7-sonnet-latest, openrouter/deepseek/deepseek-r1)",
-                value="o1",
+                "Litellm Model (e.g.: o1, claude-3-7-sonnet-latest, gpt-4o, openrouter/<openrouter-model-path>)",
+                value="gpt-4o",
             )
             col1, col2 = st.columns(2)
             with col1:
@@ -102,8 +150,22 @@ class QuestionGeneratorPage(ToolPage):
         with st.spinner(
             "Generating questions... This may take a few minutes..."
         ):
+            start_time = time.time()
             with MonetaryCostManager() as cost_manager:
-                generator = QuestionGenerator(model=input.model)
+                if "claude-3-7-sonnet-latest" in input.model:
+                    llm = GeneralLlm(
+                        model="claude-3-7-sonnet-latest",
+                        thinking={
+                            "type": "enabled",
+                            "budget_tokens": 16000,
+                        },
+                        max_tokens=20000,
+                        temperature=1,
+                        timeout=160,
+                    )
+                else:
+                    llm = GeneralLlm(model=input.model)
+                generator = QuestionGenerator(model=llm)
                 questions = await generator.generate_questions(
                     number_of_questions=input.number_of_questions,
                     topic=input.topic,
@@ -111,12 +173,15 @@ class QuestionGeneratorPage(ToolPage):
                     resolve_after_date=input.resolve_after_date,
                 )
                 cost = cost_manager.current_usage
+                generation_time = time.time() - start_time
 
-                return QuestionGeneratorOutput(
+                question_output = QuestionGeneratorOutput(
                     questions=questions,
                     original_input=input,
                     cost=cost,
+                    generation_time_seconds=generation_time,
                 )
+                return question_output
 
     @classmethod
     async def _save_run_to_coda(
@@ -144,15 +209,51 @@ class QuestionGeneratorPage(ToolPage):
         cls, outputs: list[QuestionGeneratorOutput]
     ) -> None:
         for output in outputs:
+            generation_minutes = (
+                f"{output.generation_time_seconds / 60:.1f}m"
+                if output.generation_time_seconds
+                else None
+            )
             st.markdown(
-                f"**Cost of below questions:** ${output.cost:.2f} | **Topic:** {output.original_input.topic if output.original_input.topic else 'N/A'}"
+                ReportDisplayer.clean_markdown(
+                    f"**Cost of below questions:** ${output.cost:.2f} | **Time:** {generation_minutes} | **Topic:** {output.original_input.topic if output.original_input.topic else 'N/A'}"
+                )
             )
             for question in output.questions:
-                with st.expander(question.question_text):
+                uncertainty_emoji = "🔮✅" if question.is_uncertain else "🔮❌"
+                date_range_emoji = (
+                    "📅✅"
+                    if question.is_within_date_range(
+                        output.original_input.resolve_before_date,
+                        output.original_input.resolve_after_date,
+                    )
+                    else "📅❌"
+                )
+
+                with st.expander(
+                    f"{uncertainty_emoji} {date_range_emoji} {question.question_text}"
+                ):
                     st.markdown("### Question")
                     st.markdown(
                         ReportDisplayer.clean_markdown(question.question_text)
                     )
+                    st.markdown("### Question Type")
+                    st.markdown(question.question_type)
+                    if question.question_type == "multiple_choice":
+                        st.markdown("### Options")
+                        for option in question.options:
+                            st.markdown(f"- {option}")
+                    elif question.question_type == "numeric":
+                        st.markdown("### Numeric Question")
+                        st.markdown(f"Lower Bound: {question.min_value}")
+                        st.markdown(f"Upper Bound: {question.max_value}")
+                        st.markdown(
+                            f"Open Lower Bound: {question.open_lower_bound}"
+                        )
+                        st.markdown(
+                            f"Open Upper Bound: {question.open_upper_bound}"
+                        )
+
                     st.markdown("### Resolution Criteria")
                     st.markdown(
                         ReportDisplayer.clean_markdown(
@@ -173,6 +274,14 @@ class QuestionGeneratorPage(ToolPage):
                     st.markdown(
                         question.expected_resolution_date.strftime("%Y-%m-%d")
                     )
+                    st.markdown("### Prediction & Summary of Bot Report")
+                    st.markdown("---")
+                    if question.forecast_report is None:
+                        st.markdown("No forecast report available")
+                    elif isinstance(question.forecast_report, Exception):
+                        st.markdown(f"Error: {question.forecast_report}")
+                    else:
+                        st.markdown(question.forecast_report.summary)
 
 
 if __name__ == "__main__":
