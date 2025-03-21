@@ -18,10 +18,10 @@ poetry run pre-commit install
 
 # Activate virtual environment
 if [ -e .venv/bin/activate ] ; then
-    source .venv/bin/activate
+    bash .venv/bin/activate
 fi
 if [ -e ../.venv/bin/activate ] ; then
-    source ../.venv/bin/activate
+    bash ../.venv/bin/activate
 fi
 
 # Show which Python interpreter is being used
@@ -30,3 +30,6 @@ which python
 # Install playwright
 # playwright install
 # playwright install-deps
+
+# Used for sonar extension code analysis
+# nvm install 18

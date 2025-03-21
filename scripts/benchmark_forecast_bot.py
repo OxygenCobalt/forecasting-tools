@@ -8,6 +8,8 @@ import typeguard
 from forecasting_tools.ai_models.resource_managers.monetary_cost_manager import (
     MonetaryCostManager,
 )
+from forecasting_tools.forecast_bots.forecast_bot import ForecastBot
+from forecasting_tools.forecast_helpers.benchmarker import Benchmarker
 from forecasting_tools.forecasting.forecast_bots.community.laylapso import (
     LaylapsO1Bot,
     LaylapsO3Bot,
@@ -15,10 +17,6 @@ from forecasting_tools.forecasting.forecast_bots.community.laylapso import (
 from forecasting_tools.forecasting.forecast_bots.community.laylapsr import (
     LaylapsPerplexityBot,
 )
-from forecasting_tools.forecasting.forecast_bots.forecast_bot import (
-    ForecastBot,
-)
-from forecasting_tools.forecasting.helpers.benchmarker import Benchmarker
 from forecasting_tools.util.custom_logger import CustomLogger
 
 logger = logging.getLogger(__name__)
@@ -55,7 +53,7 @@ async def benchmark_forecast_bot() -> None:
                 f"Benchmark {i+1} of {len(benchmarks)}: {benchmark.name}"
             )
             logger.info(
-                f"- Final Score: {benchmark.average_inverse_expected_log_score}"
+                f"- Final Score: {benchmark.average_expected_baseline_score}"
             )
             logger.info(f"- Total Cost: {benchmark.total_cost}")
             logger.info(f"- Time taken: {benchmark.time_taken_in_minutes}")

@@ -15,12 +15,7 @@ dotenv.load_dotenv()
 
 import logging
 
-from forecasting_tools.forecasting.forecast_bots.template_bot import (
-    TemplateBot,
-)
-from forecasting_tools.forecasting.questions_and_reports.forecast_report import (
-    ForecastReport,
-)
+from forecasting_tools.forecast_bots.template_bot import TemplateBot
 from forecasting_tools.util.custom_logger import CustomLogger
 
 CustomLogger.setup_logging()
@@ -41,27 +36,10 @@ async def run_forecasts(skip_previous: bool, tournament: int | str) -> None:
         skip_previously_forecasted_questions=skip_previous,
         use_research_summary_to_forecast=False,
     )
-    reports = await forecaster.forecast_on_tournament(
+    forecast_reports = await forecaster.forecast_on_tournament(
         tournament, return_exceptions=True
     )
-    valid_reports = [
-        report for report in reports if isinstance(report, ForecastReport)
-    ]
-    exceptions = [
-        report for report in reports if isinstance(report, BaseException)
-    ]
-    minor_exceptions = [
-        report.errors for report in valid_reports if report.errors
-    ]
-
-    if exceptions:
-        raise RuntimeError(
-            f"{len(exceptions)} errors occurred while forecasting: {exceptions}"
-        )
-    if minor_exceptions:
-        logger.error(
-            f"{len(minor_exceptions)} minor exceptions occurred while forecasting: {minor_exceptions}"
-        )
+    forecaster.log_report_summary(forecast_reports)
 
 
 if __name__ == "__main__":

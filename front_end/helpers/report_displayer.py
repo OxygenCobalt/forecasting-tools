@@ -6,15 +6,9 @@ import re
 import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 
-from forecasting_tools.forecasting.questions_and_reports.binary_report import (
-    BinaryReport,
-)
-from forecasting_tools.forecasting.questions_and_reports.questions import (
-    BinaryQuestion,
-)
-from forecasting_tools.forecasting.questions_and_reports.report_section import (
-    ReportSection,
-)
+from forecasting_tools.data_models.binary_report import BinaryReport
+from forecasting_tools.data_models.questions import BinaryQuestion
+from forecasting_tools.data_models.report_section import ReportSection
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +67,8 @@ class ReportDisplayer:
         sorted_reports = sorted(
             copy_of_reports,
             key=lambda r: (
-                r.inversed_expected_log_score
-                if r.inversed_expected_log_score is not None
+                r.expected_baseline_score
+                if r.expected_baseline_score is not None
                 else float("inf")
             ),
             reverse=True,
@@ -90,7 +84,10 @@ class ReportDisplayer:
         assert all(section.section_content is not None for section in sections)
 
         tab_names = [section.title or "Untitled" for section in sections]
-        show_question_details = report.question.id_of_post > 0
+        show_question_details = (
+            report.question.id_of_post is not None
+            and report.question.id_of_post > 0
+        )
         if show_question_details:
             tab_names.append("Question Details")
         tabs = st.tabs(tab_names)

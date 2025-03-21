@@ -15,11 +15,9 @@ dotenv.load_dotenv()
 
 import logging
 
+from forecasting_tools.data_models.forecast_report import ForecastReport
 from forecasting_tools.forecasting.forecast_bots.community.laylapso import (
     LaylapsO1Bot,
-)
-from forecasting_tools.forecasting.questions_and_reports.forecast_report import (
-    ForecastReport,
 )
 from forecasting_tools.util.custom_logger import CustomLogger
 
@@ -48,27 +46,14 @@ async def run_forecasts(skip_previous: bool, tournament: int | str) -> None:
     valid_reports = [
         report for report in reports if isinstance(report, ForecastReport)
     ]
-    exceptions = [
-        report for report in reports if isinstance(report, BaseException)
-    ]
-    minor_exceptions = [
-        report.errors for report in valid_reports if report.errors
-    ]
+
+    forecaster.log_report_summary(reports)
 
     total_cost = 0
     for report in valid_reports:
         total_cost += report.price_estimate if report.price_estimate else 0
         await asyncio.sleep(5)
     logger.info(f"Total cost estimated: {total_cost}")
-
-    if exceptions:
-        raise RuntimeError(
-            f"{len(exceptions)} errors occurred while forecasting: {exceptions}"
-        )
-    if minor_exceptions:
-        logger.error(
-            f"{len(minor_exceptions)} minor exceptions occurred while forecasting: {minor_exceptions}"
-        )
 
 
 if __name__ == "__main__":

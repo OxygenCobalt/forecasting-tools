@@ -4,9 +4,7 @@ import pytest
 from code_tests.unit_tests.test_forecasting.forecasting_test_manager import (
     ForecastingTestManager,
 )
-from forecasting_tools.forecasting.questions_and_reports.binary_report import (
-    BinaryReport,
-)
+from forecasting_tools.data_models.binary_report import BinaryReport
 
 
 def test_prediction_validation() -> None:
@@ -20,6 +18,12 @@ def test_prediction_validation() -> None:
     report = ForecastingTestManager.get_fake_forecast_report(prediction=0.9999)
     assert report.prediction == pytest.approx(0.9999)
 
+    report = ForecastingTestManager.get_fake_forecast_report(prediction=0)
+    assert report.prediction == pytest.approx(0)
+
+    report = ForecastingTestManager.get_fake_forecast_report(prediction=1)
+    assert report.prediction == pytest.approx(1)
+
     # Invalid predictions
     with pytest.raises(ValueError):
         ForecastingTestManager.get_fake_forecast_report(prediction=-0.1)
@@ -32,7 +36,7 @@ def test_prediction_validation() -> None:
 
 
 async def test_aggregate_predictions() -> None:
-    question = ForecastingTestManager.get_fake_binary_questions()
+    question = ForecastingTestManager.get_fake_binary_question()
     predictions = [0.1, 0.2, 0.3, 0.4, 0.5]
 
     result = await BinaryReport.aggregate_predictions(predictions, question)
@@ -46,14 +50,16 @@ async def test_aggregate_predictions() -> None:
         await BinaryReport.aggregate_predictions([1.1, 0.5], question)
 
 
-def test_inversed_expected_log_score() -> None:
+def test_expected_baseline_score() -> None:
     # Test with valid community prediction
     report = ForecastingTestManager.get_fake_forecast_report(
         prediction=0.6, community_prediction=0.7
     )
-    score = report.inversed_expected_log_score
+    score = report.expected_baseline_score
     assert score is not None
-    expected_score = -1 * (0.7 * np.log2(0.6) + 0.3 * np.log2(0.4))
+    expected_score = 100.0 * (
+        0.7 * (np.log(0.6) + 1.0) + (1.0 - 0.7) * (np.log(1.0 - 0.6) + 1.0)
+    )
     assert score == pytest.approx(expected_score)
     assert score > 0
 
@@ -64,17 +70,17 @@ def test_inversed_expected_log_score() -> None:
     worse_report = ForecastingTestManager.get_fake_forecast_report(
         prediction=0.4, community_prediction=0.7
     )
-    better_score = better_report.inversed_expected_log_score
-    worse_score = worse_report.inversed_expected_log_score
+    better_score = better_report.expected_baseline_score
+    worse_score = worse_report.expected_baseline_score
     assert better_score is not None
     assert worse_score is not None
-    assert better_score < worse_score
+    assert better_score > worse_score
 
     # Test with None community prediction
     report = ForecastingTestManager.get_fake_forecast_report(
         prediction=0.6, community_prediction=None
     )
-    assert report.inversed_expected_log_score is None
+    assert report.expected_baseline_score is None
 
 
 def test_deviation_points() -> None:
@@ -106,7 +112,7 @@ def test_calculate_average_expected_log_score() -> None:
         ),
     ]
 
-    average_score = BinaryReport.calculate_average_inverse_expected_log_score(
+    average_score = BinaryReport.calculate_average_expected_baseline_score(
         reports
     )
     assert isinstance(average_score, float)
@@ -118,7 +124,7 @@ def test_calculate_average_expected_log_score() -> None:
         )
     ]
     with pytest.raises(AssertionError):
-        BinaryReport.calculate_average_inverse_expected_log_score(
+        BinaryReport.calculate_average_expected_baseline_score(
             reports_with_none
         )
 

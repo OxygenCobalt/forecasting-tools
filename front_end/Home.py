@@ -11,13 +11,13 @@ sys.path.append(top_level_dir)
 
 from forecasting_tools.util.custom_logger import CustomLogger
 from front_end.app_pages.base_rate_page import BaseRatePage
-from front_end.app_pages.benchmark_page import BenchmarkPage
 from front_end.app_pages.estimator_page import EstimatorPage
 from front_end.app_pages.forecaster_page import ForecasterPage
 from front_end.app_pages.key_factors_page import KeyFactorsPage
 from front_end.app_pages.niche_list_researcher_page import (
     NicheListResearchPage,
 )
+from front_end.app_pages.question_generation_page import QuestionGeneratorPage
 from front_end.helpers.app_page import AppPage
 
 
@@ -31,14 +31,14 @@ class HomePage(AppPage):
     NICHE_LIST_RESEARCH_PAGE: type[AppPage] = NicheListResearchPage
     ESTIMATOR_PAGE: type[AppPage] = EstimatorPage
     KEY_FACTORS_PAGE: type[AppPage] = KeyFactorsPage
-    BENCHMARKS_PAGE: type[AppPage] = BenchmarkPage
+    QUESTION_GENERATION_PAGE: type[AppPage] = QuestionGeneratorPage
     NON_HOME_PAGES: list[type[AppPage]] = [
         FORECASTER_PAGE,
         KEY_FACTORS_PAGE,
         BASE_RATE_PAGE,
         NICHE_LIST_RESEARCH_PAGE,
         ESTIMATOR_PAGE,
-        BENCHMARKS_PAGE,
+        QUESTION_GENERATION_PAGE,
     ]
 
     @classmethod
@@ -56,7 +56,7 @@ def run_forecasting_streamlit_app() -> None:
         [page.convert_to_streamlit_page() for page in all_pages]
     )
     st.set_page_config(
-        page_title="Moko Research", page_icon=":material/explore:"
+        page_title="Forecasting-Tools", page_icon=":material/explore:"
     )
     navigation.run()
 

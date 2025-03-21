@@ -1,5 +1,5 @@
-import os
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -7,17 +7,14 @@ import pytest
 from code_tests.unit_tests.test_forecasting.forecasting_test_manager import (
     ForecastingTestManager,
 )
-from forecasting_tools.forecasting.forecast_bots.template_bot import (
-    TemplateBot,
-)
-from forecasting_tools.forecasting.helpers.benchmarker import Benchmarker
-from forecasting_tools.forecasting.questions_and_reports.benchmark_for_bot import (
-    BenchmarkForBot,
-)
-from forecasting_tools.util import file_manipulation
+from forecasting_tools.data_models.benchmark_for_bot import BenchmarkForBot
+from forecasting_tools.forecast_bots.template_bot import TemplateBot
+from forecasting_tools.forecast_helpers.benchmarker import Benchmarker
 
 
-async def test_file_is_made_for_benchmark(mocker: Mock) -> None:
+async def test_file_is_made_for_benchmark(
+    mocker: Mock, tmp_path: Path
+) -> None:
     if ForecastingTestManager.quarterly_cup_is_not_active():
         pytest.skip("Quarterly cup is not active")
 
@@ -26,34 +23,20 @@ async def test_file_is_made_for_benchmark(mocker: Mock) -> None:
 
     ForecastingTestManager.mock_forecast_bot_run_forecast(bot_type, mocker)
 
-    file_path_to_save_reports = "logs/forecasts/benchmarks/"
-    absolute_path = file_manipulation.get_absolute_path(
-        file_path_to_save_reports
-    )
-
-    files_before = set(
-        f
-        for f in os.listdir(absolute_path)
-        if os.path.isfile(os.path.join(absolute_path, f))
-    )
+    benchmark_dir = tmp_path / "benchmarks"
+    benchmark_dir.mkdir()
 
     await Benchmarker(
         forecast_bots=[bot],
         number_of_questions_to_use=10,
-        file_path_to_save_reports=file_path_to_save_reports,
+        file_path_to_save_reports=str(benchmark_dir),
     ).run_benchmark()
 
-    files_after = set(
-        f
-        for f in os.listdir(absolute_path)
-        if os.path.isfile(os.path.join(absolute_path, f))
-    )
+    created_files = list(benchmark_dir.iterdir())
+    assert len(created_files) > 0, "No new benchmark report file was created"
 
-    new_files = files_after - files_before
-    assert len(new_files) > 0, "No new benchmark report file was created"
-
-    for new_file in new_files:
-        os.remove(os.path.join(absolute_path, new_file))
+    for created_file in created_files:
+        created_file.unlink()
 
 
 @pytest.mark.parametrize("num_questions", [10])
@@ -114,5 +97,65 @@ def assert_all_benchmark_object_fields_are_not_none(
         len(benchmark.forecast_reports) == num_questions
     ), "Forecast reports is not set"
     assert (
-        benchmark.average_inverse_expected_log_score > 0
+        benchmark.average_expected_baseline_score > 0
     ), "Average inverse expected log score is not set"
+
+
+async def test_benchmarks_run_properly_with_provided_questions(
+    mocker: Mock,
+) -> None:
+    bot_type = TemplateBot
+    bot = TemplateBot()
+    mock_run_forecast = ForecastingTestManager.mock_forecast_bot_run_forecast(
+        bot_type, mocker
+    )
+
+    test_questions = [
+        ForecastingTestManager.get_fake_binary_question() for _ in range(4)
+    ]
+
+    benchmarks = await Benchmarker(
+        forecast_bots=[bot],
+        questions_to_use=test_questions,
+    ).run_benchmark()
+
+    assert isinstance(benchmarks, list)
+    assert all(
+        isinstance(benchmark, BenchmarkForBot) for benchmark in benchmarks
+    )
+    assert mock_run_forecast.call_count == len(test_questions)
+
+    for benchmark in benchmarks:
+        assert_all_benchmark_object_fields_are_not_none(
+            benchmark, len(test_questions)
+        )
+
+
+def test_benchmarker_initialization_errors() -> None:
+    bot = TemplateBot()
+
+    with pytest.raises(
+        ValueError,
+    ):
+        Benchmarker(forecast_bots=[bot])
+
+    with pytest.raises(
+        ValueError,
+    ):
+        Benchmarker(
+            forecast_bots=[bot],
+            number_of_questions_to_use=10,
+            questions_to_use=[
+                ForecastingTestManager.get_fake_binary_question()
+            ],
+        )
+
+    # Make sure these do not error
+    Benchmarker(
+        forecast_bots=[bot],
+        number_of_questions_to_use=10,
+    )
+    Benchmarker(
+        forecast_bots=[bot],
+        questions_to_use=[ForecastingTestManager.get_fake_binary_question()],
+    )

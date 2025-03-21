@@ -7,11 +7,8 @@ import typeguard
 from code_tests.unit_tests.test_forecasting.forecasting_test_manager import (
     ForecastingTestManager,
 )
-from forecasting_tools.forecasting.helpers.metaculus_api import (
-    ApiFilter,
-    MetaculusApi,
-)
-from forecasting_tools.forecasting.questions_and_reports.questions import (
+from forecasting_tools.data_models.data_organizer import DataOrganizer
+from forecasting_tools.data_models.questions import (
     BinaryQuestion,
     DateQuestion,
     MetaculusQuestion,
@@ -19,8 +16,9 @@ from forecasting_tools.forecasting.questions_and_reports.questions import (
     NumericQuestion,
     QuestionState,
 )
-from forecasting_tools.forecasting.questions_and_reports.report_organizer import (
-    ReportOrganizer,
+from forecasting_tools.forecast_helpers.metaculus_api import (
+    ApiFilter,
+    MetaculusApi,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,20 +30,21 @@ logger = logging.getLogger(__name__)
 
 
 def test_get_binary_question_type_from_id() -> None:
-    question_id = ReportOrganizer.get_example_post_id_for_question_type(
+    # Test question w/ <1% probability: https://www.metaculus.com/questions/578/human-extinction-by-2100/
+    post_id = DataOrganizer.get_example_post_id_for_question_type(
         BinaryQuestion
     )
-    question = MetaculusApi.get_question_by_post_id(question_id)
+    question = MetaculusApi.get_question_by_post_id(post_id)
     assert isinstance(question, BinaryQuestion)
-    assert question_id == question.id_of_post
+    assert post_id == question.id_of_post
     assert question.community_prediction_at_access_time is not None
-    assert question.community_prediction_at_access_time == pytest.approx(0.01)
+    assert question.community_prediction_at_access_time <= 0.01
     assert question.state == QuestionState.OPEN
-    assert_basic_question_attributes_not_none(question, question_id)
+    assert_basic_question_attributes_not_none(question, post_id)
 
 
 def test_get_numeric_question_type_from_id() -> None:
-    question_id = ReportOrganizer.get_example_post_id_for_question_type(
+    question_id = DataOrganizer.get_example_post_id_for_question_type(
         NumericQuestion
     )
     question = MetaculusApi.get_question_by_post_id(question_id)
@@ -60,7 +59,7 @@ def test_get_numeric_question_type_from_id() -> None:
 
 @pytest.mark.skip(reason="Date questions are not fully supported yet")
 def test_get_date_question_type_from_id() -> None:
-    question_id = ReportOrganizer.get_example_post_id_for_question_type(
+    question_id = DataOrganizer.get_example_post_id_for_question_type(
         DateQuestion
     )
     question = MetaculusApi.get_question_by_post_id(question_id)
@@ -74,7 +73,7 @@ def test_get_date_question_type_from_id() -> None:
 
 
 def test_get_multiple_choice_question_type_from_id() -> None:
-    post_id = ReportOrganizer.get_example_post_id_for_question_type(
+    post_id = DataOrganizer.get_example_post_id_for_question_type(
         MultipleChoiceQuestion
     )
     question = MetaculusApi.get_question_by_post_id(post_id)
@@ -98,7 +97,7 @@ def test_get_question_with_tournament_slug() -> None:
 
 
 def test_post_comment_on_question() -> None:
-    post_id = ReportOrganizer.get_example_post_id_for_question_type(
+    post_id = DataOrganizer.get_example_post_id_for_question_type(
         BinaryQuestion
     )
     question = MetaculusApi.get_question_by_post_id(post_id)
@@ -120,7 +119,7 @@ def test_post_binary_prediction_on_question() -> None:
 
 
 def test_post_binary_prediction_error_when_out_of_range() -> None:
-    question = ForecastingTestManager.get_fake_binary_questions()
+    question = ForecastingTestManager.get_fake_binary_question()
     question_id = question.id_of_post
     with pytest.raises(ValueError):
         MetaculusApi.post_binary_question_prediction(question_id, 0)
@@ -293,6 +292,15 @@ def test_get_benchmark_questions(num_questions_to_get: int) -> None:
             120,
             True,
         ),
+        (
+            ApiFilter(
+                allowed_statuses=["resolved"],
+                cp_reveal_time_gt=datetime(2023, 1, 1),
+                cp_reveal_time_lt=datetime(2024, 1, 1),
+            ),
+            30,
+            False,
+        ),
     ],
 )
 async def test_get_questions_from_tournament_with_filter(
@@ -426,6 +434,9 @@ def assert_basic_question_attributes_not_none(
     assert (
         question.includes_bots_in_aggregates is not None
     ), f"Includes bots in aggregates is None for post ID {post_id}"
+    assert (
+        question.cp_reveal_time is not None
+    ), f"CP reveal time is None for post ID {post_id}"
     assert isinstance(
         question.state, QuestionState
     ), f"State is not a QuestionState for post ID {post_id}"
@@ -545,6 +556,18 @@ def assert_questions_match_filter(  # NOSONAR
             assert (
                 question.open_time and question.open_time < filter.open_time_lt
             ), f"Question {question.id_of_post} opened at {question.open_time}, expected before {filter.open_time_lt}"
+
+        if filter.cp_reveal_time_gt:
+            assert (
+                question.cp_reveal_time
+                and question.cp_reveal_time > filter.cp_reveal_time_gt
+            ), f"Question {question.id_of_post} CP reveal time is {question.cp_reveal_time}, expected after {filter.cp_reveal_time_gt}"
+
+        if filter.cp_reveal_time_lt:
+            assert (
+                question.cp_reveal_time
+                and question.cp_reveal_time < filter.cp_reveal_time_lt
+            ), f"Question {question.id_of_post} CP reveal time is {question.cp_reveal_time}, expected before {filter.cp_reveal_time_lt}"
 
         if filter.allowed_tournaments and all(
             isinstance(tournament, str)

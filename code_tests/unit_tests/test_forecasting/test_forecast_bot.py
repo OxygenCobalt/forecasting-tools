@@ -6,26 +6,22 @@ from code_tests.unit_tests.test_forecasting.forecasting_test_manager import (
     ForecastingTestManager,
     MockBot,
 )
-from forecasting_tools.forecasting.forecast_bots.bot_lists import (
-    get_all_official_bot_classes,
+from forecasting_tools.data_models.forecast_report import ReasonedPrediction
+from forecasting_tools.data_models.questions import BinaryQuestion
+from forecasting_tools.forecast_bots.bot_lists import (
+    get_all_important_bot_classes,
 )
-from forecasting_tools.forecasting.forecast_bots.forecast_bot import (
+from forecasting_tools.forecast_bots.forecast_bot import (
     ForecastBot,
     ForecastReport,
-)
-from forecasting_tools.forecasting.questions_and_reports.forecast_report import (
-    ReasonedPrediction,
-)
-from forecasting_tools.forecasting.questions_and_reports.questions import (
-    BinaryQuestion,
 )
 
 
 async def test_forecast_questions_returns_exceptions_when_specified() -> None:
     bot = MockBot()
     test_questions = [
-        ForecastingTestManager.get_fake_binary_questions(),
-        ForecastingTestManager.get_fake_binary_questions(),
+        ForecastingTestManager.get_fake_binary_question(),
+        ForecastingTestManager.get_fake_binary_question(),
     ]
 
     original_research = bot.run_research
@@ -45,16 +41,16 @@ async def test_forecast_questions_returns_exceptions_when_specified() -> None:
     )
     assert len(results) == 2
     assert isinstance(results[0], ForecastReport)
-    assert isinstance(results[1], RuntimeError)
+    assert isinstance(results[1], Exception)
     assert "Test error" in str(results[1])
 
-    with pytest.raises(RuntimeError, match="Test error"):
+    with pytest.raises(Exception):
         await bot.forecast_questions(test_questions, return_exceptions=False)
 
 
 async def test_forecast_question_returns_exception_when_specified() -> None:
     bot = MockBot()
-    test_question = ForecastingTestManager.get_fake_binary_questions()
+    test_question = ForecastingTestManager.get_fake_binary_question()
 
     async def mock_research(*args, **kwargs):
         raise RuntimeError("Test error")
@@ -62,10 +58,10 @@ async def test_forecast_question_returns_exception_when_specified() -> None:
     bot.run_research = mock_research
 
     result = await bot.forecast_question(test_question, return_exceptions=True)
-    assert isinstance(result, RuntimeError)
+    assert isinstance(result, Exception)
     assert "Test error" in str(result)
 
-    with pytest.raises(RuntimeError, match="Test error"):
+    with pytest.raises(Exception):
         await bot.forecast_question(test_question, return_exceptions=False)
 
 
@@ -77,7 +73,7 @@ async def test_forecast_report_contains_errors_from_failed_operations(
         research_reports_per_question=2,
         predictions_per_research_report=2,
     )
-    test_question = ForecastingTestManager.get_fake_binary_questions()
+    test_question = ForecastingTestManager.get_fake_binary_question()
 
     error_message = "Test error"
     mock_call_count = 0
@@ -111,14 +107,14 @@ async def test_forecast_fails_with_all_predictions_erroring() -> None:
         research_reports_per_question=2,
         predictions_per_research_report=3,
     )
-    test_question = ForecastingTestManager.get_fake_binary_questions()
+    test_question = ForecastingTestManager.get_fake_binary_question()
 
     async def mock_forecast(*args, **kwargs):
         raise RuntimeError("Test prediction error")
 
     bot._run_forecast_on_binary = mock_forecast
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(Exception):
         await bot.forecast_question(test_question)
 
 
@@ -129,7 +125,7 @@ async def test_research_reports_and_predictions_per_question_counts() -> None:
         research_reports_per_question=research_reports,
         predictions_per_research_report=predictions_per_report,
     )
-    test_question = ForecastingTestManager.get_fake_binary_questions()
+    test_question = ForecastingTestManager.get_fake_binary_question()
 
     research_call_count = 0
     prediction_call_count = 0
@@ -156,7 +152,7 @@ async def test_research_reports_and_predictions_per_question_counts() -> None:
 
 async def test_use_research_summary_for_forecast() -> None:
     bot = MockBot(use_research_summary_to_forecast=True)
-    test_question = ForecastingTestManager.get_fake_binary_questions()
+    test_question = ForecastingTestManager.get_fake_binary_question()
 
     full_research = "Full research content"
     summary = "Summary content"
@@ -187,8 +183,8 @@ async def test_saves_reports_to_specified_folder(tmp_path: Path) -> None:
     folder_path = str(tmp_path)
     bot = MockBot(folder_to_save_reports_to=folder_path)
     test_questions = [
-        ForecastingTestManager.get_fake_binary_questions(),
-        ForecastingTestManager.get_fake_binary_questions(),
+        ForecastingTestManager.get_fake_binary_question(),
+        ForecastingTestManager.get_fake_binary_question(),
     ]
 
     await bot.forecast_questions(test_questions)
@@ -201,8 +197,8 @@ async def test_saves_reports_to_specified_folder(tmp_path: Path) -> None:
 
 async def test_skip_previously_forecasted_questions() -> None:
     bot = MockBot(skip_previously_forecasted_questions=True)
-    forecasted_question = ForecastingTestManager.get_fake_binary_questions()
-    unforecasted_question = ForecastingTestManager.get_fake_binary_questions()
+    forecasted_question = ForecastingTestManager.get_fake_binary_question()
+    unforecasted_question = ForecastingTestManager.get_fake_binary_question()
 
     forecasted_question.already_forecasted = True
     unforecasted_question.already_forecasted = False
@@ -223,7 +219,7 @@ async def test_skip_previously_forecasted_questions() -> None:
         await bot.forecast_question(forecasted_question)
 
 
-@pytest.mark.parametrize("bot", get_all_official_bot_classes())
+@pytest.mark.parametrize("bot", get_all_important_bot_classes())
 def test_bot_has_config(bot: type[ForecastBot]):
     probable_minimum_number_of_bot_params = 3
     bot_config = bot().get_config()

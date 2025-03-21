@@ -11,15 +11,9 @@ import plotly.express as px
 import streamlit as st
 import typeguard
 
-from forecasting_tools.forecasting.questions_and_reports.benchmark_for_bot import (
-    BenchmarkForBot,
-)
-from forecasting_tools.forecasting.questions_and_reports.binary_report import (
-    BinaryReport,
-)
-from forecasting_tools.forecasting.questions_and_reports.forecast_report import (
-    ForecastReport,
-)
+from forecasting_tools.data_models.benchmark_for_bot import BenchmarkForBot
+from forecasting_tools.data_models.binary_report import BinaryReport
+from forecasting_tools.data_models.forecast_report import ForecastReport
 from forecasting_tools.util import file_manipulation
 from front_end.helpers.report_displayer import ReportDisplayer
 
@@ -62,8 +56,8 @@ def display_deviation_scores(reports: list[BinaryReport]) -> None:
 def display_stats_for_report_type(
     reports: list[BinaryReport], title: str
 ) -> None:
-    average_expected_log_score = (
-        BinaryReport.calculate_average_inverse_expected_log_score(reports)
+    average_expected_baseline_score = (
+        BinaryReport.calculate_average_expected_baseline_score(reports)
     )
     average_deviation = BinaryReport.calculate_average_deviation_points(
         reports
@@ -72,7 +66,7 @@ def display_stats_for_report_type(
         f"""
         #### {title}
         - Number of Questions: {len(reports)}
-        - Expected Log Score (lower is better): {average_expected_log_score:.4f}
+        - Expected Baseline Score (lower is better): {average_expected_baseline_score:.4f}
         - Average Deviation: On average, there is a {average_deviation:.2%} percentage point difference between community and bot
         """
     )
@@ -111,16 +105,16 @@ def display_question_stats_in_list(
     sorted_reports = sorted(
         report_list,
         key=lambda r: (
-            r.inversed_expected_log_score
-            if r.inversed_expected_log_score is not None
+            r.expected_baseline_score
+            if r.expected_baseline_score is not None
             else -1
         ),
         reverse=True,
     )
     for report in sorted_reports:
         deviation = (
-            report.inversed_expected_log_score
-            if report.inversed_expected_log_score is not None
+            report.expected_baseline_score
+            if report.expected_baseline_score is not None
             else -1
         )
         st.write(
@@ -134,7 +128,7 @@ def display_benchmark_list(benchmarks: list[BenchmarkForBot]) -> None:
 
     st.markdown("# Select Benchmark")
     benchmark_options = [
-        f"{b.name} (Score: {b.average_inverse_expected_log_score:.4f})"
+        f"{b.name} (Score: {b.average_expected_baseline_score:.4f})"
         for b in benchmarks
     ]
     selected_benchmark_name = st.selectbox(
@@ -154,7 +148,7 @@ def display_benchmark_list(benchmarks: list[BenchmarkForBot]) -> None:
         st.markdown(f"**Total Cost:** {benchmark.total_cost}")
         st.markdown(f"**Git Commit Hash:** {benchmark.git_commit_hash}")
         st.markdown(
-            f"**Average Inverse Expected Log Score:** {benchmark.average_inverse_expected_log_score:.4f}"
+            f"**Average Expected Baseline Score:** {benchmark.average_expected_baseline_score:.4f}"
         )
         # Add average deviation score if reports are binary
         if isinstance(benchmark.forecast_reports[0], BinaryReport):
@@ -193,12 +187,25 @@ def get_benchmark_display_name(benchmark: BenchmarkForBot, index: int) -> str:
     return f"{index}: {benchmark.name} ({reports_per_q}x{preds_per_r})"
 
 
+def add_star_annotations(
+    fig: px.bar, df: pd.DataFrame, x_col: str, y_col: str, is_starred_col: str
+) -> None:
+    """Add star annotations to bars meeting the starred condition."""
+    for idx, row in df[df[is_starred_col]].iterrows():
+        fig.add_annotation(
+            x=row[x_col],
+            y=row[y_col],
+            text="★",
+            showarrow=False,
+            yshift=10,
+            font=dict(size=20),
+        )
+
+
 def display_benchmark_comparison_graphs(
     benchmarks: list[BenchmarkForBot],
 ) -> None:
     st.markdown("# Benchmark Score Comparisons")
-    st.markdown("Lower score is better for both metrics.")
-
     data_by_benchmark = []
 
     for index, benchmark in enumerate(benchmarks):
@@ -230,7 +237,7 @@ def display_benchmark_comparison_graphs(
                 {
                     "Benchmark": benchmark_name,
                     "Category": "All Questions",
-                    "Expected Log Score": benchmark.average_inverse_expected_log_score,
+                    "Expected Baseline Score": benchmark.average_expected_baseline_score,
                     "Deviation Score": BinaryReport.calculate_average_deviation_points(
                         reports
                     )
@@ -239,7 +246,7 @@ def display_benchmark_comparison_graphs(
                 {
                     "Benchmark": benchmark_name,
                     "Category": "Certain Questions",
-                    "Expected Log Score": BinaryReport.calculate_average_inverse_expected_log_score(
+                    "Expected Baseline Score": BinaryReport.calculate_average_expected_baseline_score(
                         certain_reports
                     ),
                     "Deviation Score": BinaryReport.calculate_average_deviation_points(
@@ -250,7 +257,7 @@ def display_benchmark_comparison_graphs(
                 {
                     "Benchmark": benchmark_name,
                     "Category": "Uncertain Questions",
-                    "Expected Log Score": BinaryReport.calculate_average_inverse_expected_log_score(
+                    "Expected Baseline Score": BinaryReport.calculate_average_expected_baseline_score(
                         uncertain_reports
                     ),
                     "Deviation Score": BinaryReport.calculate_average_deviation_points(
@@ -267,33 +274,30 @@ def display_benchmark_comparison_graphs(
     try:
         df = pd.DataFrame(data_by_benchmark)
 
-        st.markdown("### Expected Log Scores")
-        st.markdown("Lower score indicates better performance.")
-
-        min_scores = df.groupby("Category")["Expected Log Score"].transform(
-            "min"
+        st.markdown("### Expected Baseline Scores")
+        st.markdown(
+            "Higher score indicates better performance. Read more [here](https://www.metaculus.com/help/scores-faq/#:~:text=The%20Baseline%20score%20compares,probability%20to%20all%20outcomes.)"
         )
-        df["Is Min Expected"] = df["Expected Log Score"] == min_scores
+
+        # Mark highest scores with stars (higher is better for baseline score)
+        max_scores = df.groupby("Category")[
+            "Expected Baseline Score"
+        ].transform("max")
+        df["Is Best Expected"] = df["Expected Baseline Score"] == max_scores
 
         fig = px.bar(
             df,
             x="Benchmark",
-            y="Expected Log Score",
+            y="Expected Baseline Score",
             color="Category",
             barmode="group",
-            title="Expected Log Scores by Benchmark and Category",
+            title="Expected Baseline Scores by Benchmark and Category",
         )
-        fig.update_layout(yaxis_title="Expected Log Score")
+        fig.update_layout(yaxis_title="Expected Baseline Score")
 
-        for idx, row in df[df["Is Min Expected"]].iterrows():
-            fig.add_annotation(
-                x=row["Benchmark"],
-                y=row["Expected Log Score"],
-                text="★",
-                showarrow=False,
-                yshift=10,
-                font=dict(size=20),
-            )
+        add_star_annotations(
+            fig, df, "Benchmark", "Expected Baseline Score", "Is Best Expected"
+        )
 
         st.plotly_chart(fig)
 
@@ -302,10 +306,11 @@ def display_benchmark_comparison_graphs(
             "Lower score indicates predictions closer to community consensus. Shown as difference in percentage points between bot and community."
         )
 
+        # Mark lowest deviations with stars (lower is better for deviation score)
         min_deviations = df.groupby("Category")["Deviation Score"].transform(
             "min"
         )
-        df["Is Min Deviation"] = df["Deviation Score"] == min_deviations
+        df["Is Best Deviation"] = df["Deviation Score"] == min_deviations
 
         fig = px.bar(
             df,
@@ -317,15 +322,9 @@ def display_benchmark_comparison_graphs(
         )
         fig.update_layout(yaxis_title="Deviation Score (percentage points)")
 
-        for idx, row in df[df["Is Min Deviation"]].iterrows():
-            fig.add_annotation(
-                x=row["Benchmark"],
-                y=row["Deviation Score"],
-                text="★",
-                showarrow=False,
-                yshift=10,
-                font=dict(size=20),
-            )
+        add_star_annotations(
+            fig, df, "Benchmark", "Deviation Score", "Is Best Deviation"
+        )
 
         st.plotly_chart(fig)
 
@@ -390,7 +389,7 @@ def main() -> None:
             all_benchmarks.insert(0, perfect_benchmark)
 
             benchmark_options = [
-                f"{i}: {b.name} (Score: {b.average_inverse_expected_log_score:.4f})"
+                f"{i}: {b.name} (Score: {b.average_expected_baseline_score:.4f})"
                 for i, b in enumerate(all_benchmarks)
             ]
             selected_benchmarks = st.multiselect(

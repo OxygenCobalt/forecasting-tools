@@ -1,16 +1,12 @@
 import asyncio
 
-from forecasting_tools.forecasting.helpers.forecast_database_manager import (
+from forecasting_tools.data_models.data_organizer import DataOrganizer
+from forecasting_tools.data_models.forecast_report import ForecastReport
+from forecasting_tools.forecast_helpers.forecast_database_manager import (
     ForecastDatabaseManager,
     ForecastRunType,
 )
-from forecasting_tools.forecasting.questions_and_reports.forecast_report import (
-    ForecastReport,
-)
-from forecasting_tools.forecasting.questions_and_reports.report_organizer import (
-    ReportOrganizer,
-)
-from forecasting_tools.forecasting.sub_question_researchers.base_rate_researcher import (
+from forecasting_tools.research_agents.base_rate_researcher import (
     BaseRateReport,
 )
 from forecasting_tools.util.coda_utils import CodaRow
@@ -62,7 +58,7 @@ async def test_base_rate_report_can_be_added_to_coda() -> None:
 
 def get_forecast_example_reports() -> list[ForecastReport]:
     metaculus_data_path = "code_tests/unit_tests/test_forecasting/forecasting_test_data/metaculus_forecast_report_examples.json"
-    metaculus_reports = ReportOrganizer.load_reports_from_file_path(
+    metaculus_reports = DataOrganizer.load_reports_from_file_path(
         metaculus_data_path
     )
     return metaculus_reports
